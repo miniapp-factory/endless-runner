@@ -161,3 +161,153 @@ export default function Game() {
     </div>
   );
 }
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+const INITIAL_SPAWN_INTERVAL = 2000; // ms
+const MIN_SPAWN_INTERVAL = 800;
+const SPAWN_DECREMENT = 50;
+
+const INITIAL_TARGET_DURATION = 1500; // ms
+const MIN_TARGET_DURATION = 800;
+const DURATION_DECREMENT = 30;
+
+const MAX_MISSES = 5;
+const TARGET_SIZE = 50;
+
+export default function Game() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [targets, setTargets] = useState<
+    { id: number; x: number; y: number; size: number }[]
+  >([]);
+  const [score, setScore] = useState(0);
+  const [missed, setMissed] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [spawnInterval, setSpawnInterval] = useState(INITIAL_SPAWN_INTERVAL);
+  const [targetDuration, setTargetDuration] = useState(INITIAL_TARGET_DURATION);
+
+  // Load high score on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = Number(localStorage.getItem("highScore"));
+      if (!isNaN(stored)) setHighScore(stored);
+    }
+  }, []);
+
+  // Start or restart the game
+  const startGame = () => {
+    setScore(0);
+    setMissed(0);
+    setTargets([]);
+    setSpawnInterval(INITIAL_SPAWN_INTERVAL);
+    setTargetDuration(INITIAL_TARGET_DURATION);
+    setIsRunning(true);
+  };
+
+  // Adjust spawn interval and target duration as score increases
+  useEffect(() => {
+    if (!isRunning) return;
+    const newSpawn = Math.max(
+      MIN_SPAWN_INTERVAL,
+      INITIAL_SPAWN_INTERVAL - Math.floor(score / 5) * SPAWN_DECREMENT
+    );
+    const newDuration = Math.max(
+      MIN_TARGET_DURATION,
+      INITIAL_TARGET_DURATION - Math.floor(score / 5) * DURATION_DECREMENT
+    );
+    setSpawnInterval(newSpawn);
+    setTargetDuration(newDuration);
+  }, [score, isRunning]);
+
+  // Spawn targets
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(() => {
+      const id = Date.now();
+      const container = containerRef.current;
+      if (!container) return;
+      const maxX = container.clientWidth - TARGET_SIZE;
+      const maxY = container.clientHeight - TARGET_SIZE;
+      const x = Math.floor(Math.random() * maxX);
+      const y = Math.floor(Math.random() * maxY);
+      setTargets((prev) => [...prev, { id, x, y, size: TARGET_SIZE }]);
+
+      // Remove target after duration
+      const timeout = setTimeout(() => {
+        setTargets((prev) => prev.filter((t) => t.id !== id));
+        setMissed((m) => m + 1);
+      }, targetDuration);
+
+      // Clean up timeout if target is removed early
+      return () => clearTimeout(timeout);
+    }, spawnInterval);
+    return () => clearInterval(interval);
+  }, [isRunning, spawnInterval, targetDuration]);
+
+  // Check for game over
+  useEffect(() => {
+    if (missed > MAX_MISSES) {
+      setIsRunning(false);
+      if (score > highScore) {
+        setHighScore(score);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("highScore", String(score));
+        }
+      }
+    }
+  }, [missed, score, highScore]);
+
+  const handleTargetClick = (id: number) => {
+    setTargets((prev) => prev.filter((t) => t.id !== id));
+    setScore((s) => s + 1);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      {!isRunning && (
+        <button
+          onClick={startGame}
+          className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Start Game
+        </button>
+      )}
+      <div
+        ref={containerRef}
+        className="relative w-full max-w-md h-80 bg-gray-200 overflow-hidden rounded-lg shadow-lg"
+      >
+        {targets.map((t) => (
+          <div
+            key={t.id}
+            className="absolute bg-red-500 rounded-full cursor-pointer"
+            style={{
+              width: `${t.size}px`,
+              height: `${t.size}px`,
+              left: `${t.x}px`,
+              top: `${t.y}px`,
+            }}
+            onClick={() => handleTargetClick(t.id)}
+          />
+        ))}
+      </div>
+      <div className="flex gap-4">
+        <div className="text-sm font-medium">Score: {score}</div>
+        <div className="text-sm font-medium">Missed: {missed}</div>
+        <div className="text-sm font-medium">High: {highScore}</div>
+      </div>
+      {!isRunning && missed > MAX_MISSES && (
+        <div className="flex flex-col items-center gap-2">
+          <h2 className="text-2xl">Game Over</h2>
+          <button
+            onClick={startGame}
+            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Restart
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
