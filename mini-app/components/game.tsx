@@ -54,14 +54,14 @@ export default function Game() {
       // Collision detection
       const charRect = {
         x: 20,
-        y: containerRef.current?.clientHeight! - CHARACTER_SIZE - characterY,
+        y: (containerRef.current?.clientHeight ?? 0) - CHARACTER_SIZE - characterY,
         width: CHARACTER_SIZE,
         height: CHARACTER_SIZE,
       };
       for (const o of obstaclesRef.current) {
         const obsRect = {
           x: o.x,
-          y: containerRef.current?.clientHeight! - o.height,
+          y: (containerRef.current?.clientHeight ?? 0) - o.height,
           width: o.width,
           height: o.height,
         };
@@ -87,7 +87,7 @@ export default function Game() {
       setScore((s) => s + 1);
     }, 16);
     return () => clearInterval(interval);
-  }, [isGameOver, velocityY, score, highScore, speed]);
+  }, [isGameOver, velocityY, score, highScore, speed, characterY]);
 
   const handleJump = () => {
     if (isGameOver) return;
