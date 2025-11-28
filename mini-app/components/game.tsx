@@ -74,7 +74,9 @@ export default function Game() {
           setIsGameOver(true);
           if (score > highScore) {
             setHighScore(score);
-            localStorage.setItem("highScore", String(score));
+            if (typeof window !== "undefined") {
+              localStorage.setItem("highScore", String(score));
+            }
           }
           return;
         }
